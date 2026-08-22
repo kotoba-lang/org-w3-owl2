@@ -19,6 +19,13 @@
       (sec 9.2.4) fact materialization -- adds the obviously-implied
       mirrored facts.
 
+  For the SAME semantics evaluated as a least fixpoint against a stored
+  graph rather than an in-memory ontology value, see `owl.rules`: it emits
+  RDFS/OWL 2 RL as Datalog rules for a query engine to run, which is what
+  you want when the ontology is too large to hold and when entailments have
+  to compose (the inverse of a transitive property does not close in one
+  pass, and cannot here -- see the paragraph below).
+
   `materialize` composes (c) then (b) ONCE (not iterated to a fixpoint) --
   if expanding inverse/symmetric facts would in turn enable a new
   transitive-closure step across a DIFFERENT transitive property that
