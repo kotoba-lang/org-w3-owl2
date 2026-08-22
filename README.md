@@ -26,6 +26,44 @@ functional-style text 1:1 (`owl.functional`), structural validation
 (`owl.validate`), and a small set of tractable, non-reasoner graph closures
 (`owl.reason`) -- no vendor tool, no OWL API, no description-logic reasoner.
 
+## `owl.rules` -- the same semantics, evaluated by a query engine
+
+`owl.reason` closes over an ontology you are holding. `owl.rules` emits
+RDFS / OWL 2 RL as **Datalog rules** -- plain EDN, `[[(head ?a ?b) body ...]
+...]` -- so a fixpoint engine runs them against a stored graph and reads only
+the predicates a rule names.
+
+```clojure
+(require '[owl.rules :as rules])
+
+{:find  '[?class]
+ :where '[(owl-type "Felix" ?class)]      ;; every class, however deep
+ :rules (rules/hierarchy-rules)}
+```
+
+Two rulesets, and the difference is a full scan:
+
+- **`hierarchy-rules`** names every predicate literally (`rdf:type`,
+  `rdfs:subClassOf`, `rdfs:subPropertyOf`, `owl:equivalentClass`), so an
+  engine that plans reads per predicate touches four ranges. Transitive
+  subclass and subproperty, and `rdf:type` closed over the class hierarchy.
+- **`triple-rules`** adds `rdfs:subPropertyOf` propagation, `rdfs:domain` /
+  `rdfs:range` typing, `owl:TransitiveProperty`, `owl:SymmetricProperty` and
+  `owl:inverseOf`. These derive triples whose PREDICATE is a variable, so the
+  base case is `[?s ?p ?o]` and no index narrows it. That is what the
+  entailments mean, not a shortfall to optimise later.
+
+Vocabulary is explicit, never guessed: `keyword-vocabulary` (`:rdfs/subClassOf`)
+or `iri-vocabulary` (the full W3C IRIs), or your own map. A missing term throws
+rather than becoming a `nil` predicate, which would match nothing and read as
+an ontology that simply had no such axioms.
+
+Still not a description-logic reasoner -- Datalog is Horn, so `someValuesFrom`,
+`unionOf`, cardinality and disjointness consistency are out, and no number of
+extra rules changes that. `owl:sameAs` is left out deliberately: its rules are
+sound and they square the derived set while making every answer ambiguous about
+which name it came back under.
+
 ## Maturity
 
 | | |
