@@ -192,7 +192,7 @@ which name it came back under.
 ## Test
 
 ```bash
-clojure -M:test
+kbb -M:test
 ```
 
 ## License
