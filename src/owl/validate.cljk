@@ -17,7 +17,7 @@
   general OWL 2 DL consistency checking, so a `valid?` ontology can still be
   DL-inconsistent in ways this namespace cannot see (e.g. contradictions
   that only show up after existential/cardinality reasoning)."
-  (:require [clojure.set :as set]
+  (:require [kotoba.lang.coll :as set]
             [kotoba.dsl.problem :as problem]
             [owl.model :as m]))
 
