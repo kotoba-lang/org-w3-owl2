@@ -7,7 +7,7 @@
   and checks what comes out -- including, in each case, a fact that is
   DERIVED rather than asserted, because a ruleset that never fires still
   answers correctly for everything that was written down."
-  (:require [clojure.test :refer [deftest is testing]]
+  (:require [kotoba.test :refer [deftest is testing]]
             [owl.rules :as rules]
             [datalog.core :as dc]
             [datom.source :as src]))
