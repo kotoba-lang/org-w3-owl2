@@ -23,7 +23,11 @@
                       io.github.kotoba-lang/datalog
                       {:git/sha "2858919fc567ec63ac845ab6807e2f993b2d6df7"}
                       io.github.kotoba-lang/datom-source
-                      {:git/sha "4ca0096cbe83e98f80510f2c3e593d5498eadcbc"}}
+                      {:git/sha "4ca0096cbe83e98f80510f2c3e593d5498eadcbc"}
+                      ;; test/owl/w3c_rdfxml.cljk reads the vendored W3C RL
+                      ;; conformance manifest with this parser.
+                      io.github.kotoba-lang/xml
+                      {:git/sha "1df028c6bce9769f11a1d04940502de3c253819c"}}
          :main-opts ["-m" "cognitect.test-runner"]
          :exec-fn cognitect.test-runner.api/test}
   :lint {:replace-deps {clj-kondo/clj-kondo {:mvn/version "2024.11.14"}}

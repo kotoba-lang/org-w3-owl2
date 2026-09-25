@@ -155,7 +155,7 @@
 
 (deftest a-vocabulary-missing-a-term-throws-instead-of-matching-nothing
   (testing "a nil predicate reads as an ontology without those axioms"
-    (is (thrown? #?(:clj clojure.lang.ExceptionInfo :cljs cljs.core/ExceptionInfo)
+    (is (thrown? #?(:clj clojure.lang.ExceptionInfo :cljs js/Error)
                  (rules/hierarchy-rules (dissoc rules/keyword-vocabulary :sub-class-of))))
     (is (= [:sub-class-of]
            (:missing (try (rules/hierarchy-rules (dissoc rules/keyword-vocabulary :sub-class-of))

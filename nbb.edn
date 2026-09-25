@@ -1,9 +1,29 @@
 ;; nbb.edn -- the kbb engine reads :deps HERE, not from deps.edn (kbb -M:test
-;; puts no git coordinate from deps.edn on the classpath). Created by
-;; scripts/migrate-clojure-test-to-kotoba-test.cljk; :paths copied from deps.edn.
+;; puts no git coordinate from deps.edn on the classpath). :paths copied from
+;; deps.edn; every sha below is copied from deps.edn or from the pins oak and
+;; mithril use for the same coordinates, never guessed.
+;;
+;; datalog and datom-source are here ONLY because nbb.edn has no aliases: they
+;; are the evaluator the test suite runs the rules through. src/ requires
+;; neither (owl.rules emits rules as data), so a consumer that puts this
+;; library on its classpath pulls no engine it did not ask for.
 {:paths ["src"]
  :deps {
         ;; kotoba.test (clojure.test-compatible surface), not clojure.test --
         ;; scripts/migrate-clojure-test-to-kotoba-test.cljk. Explicit floor.
         io.github.kotoba-lang/test {:git/url "https://github.com/kotoba-lang/test.git"
-                                    :git/sha "2ab4885f99fd25552d380d0f6b0b54c5a72eb7ae"}}}
+                                    :git/sha "2ab4885f99fd25552d380d0f6b0b54c5a72eb7ae"}
+        ;; owl.validate requires kotoba.lang.coll (deps.edn floor 0ffd5f6).
+        io.github.kotoba-lang/coll {:git/url "https://github.com/kotoba-lang/coll.git"
+                                    :git/sha "0ffd5f6340af50871d4759b06e02ac4fbf9a4bdf"}
+        io.github.kotoba-lang/dsl-core {:git/url "https://github.com/kotoba-lang/dsl-core.git"
+                                        :git/sha "ac8554fe4c29dc55fc78a850044888dfcc4e1e8b"}
+        ;; TEST evaluator (see above). Same shas oak and mithril pin.
+        io.github.kotoba-lang/datalog {:git/url "https://github.com/kotoba-lang/datalog.git"
+                                       :git/sha "9c86cc8d1009d4d2e72640a624bb5e0ea6a465e1"}
+        io.github.kotoba-lang/datom-source {:git/url "https://github.com/kotoba-lang/datom-source.git"
+                                           :git/sha "1c3875df01e816e8188e65c8179f1491c8cdfef8"}
+        ;; TEST only: the XML parser under test/owl/w3c_rdfxml.cljk, which
+        ;; reads the vendored W3C OWL 2 RL conformance manifest. main tip.
+        io.github.kotoba-lang/xml {:git/url "https://github.com/kotoba-lang/xml.git"
+                                   :git/sha "1df028c6bce9769f11a1d04940502de3c253819c"}}}

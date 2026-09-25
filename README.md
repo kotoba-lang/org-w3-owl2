@@ -58,11 +58,69 @@ or `iri-vocabulary` (the full W3C IRIs), or your own map. A missing term throws
 rather than becoming a `nil` predicate, which would match nothing and read as
 an ontology that simply had no such axioms.
 
-Still not a description-logic reasoner -- Datalog is Horn, so `someValuesFrom`,
-`unionOf`, cardinality and disjointness consistency are out, and no number of
-extra rules changes that. `owl:sameAs` is left out deliberately: its rules are
-sound and they square the derived set while making every answer ambiguous about
-which name it came back under.
+Those two Datalog rulesets are the RDFS core only: no `owl:sameAs`, no
+`someValuesFrom` / `unionOf` / cardinality, no inconsistency detection. The
+complete OWL 2 RL ruleset is the next section.
+
+## `owl.rl` -- the complete OWL 2 RL/RDF ruleset
+
+`owl.rules/owl2-rl-rules` is the W3C rule table of
+[OWL 2 Profiles §4.3](https://www.w3.org/TR/owl2-profiles/#Reasoning_in_OWL_2_RL_and_RDF_Graphs_using_Rules),
+Tables 4-9, one row per rule id (78 rows), as data. `owl.rl/entail`
+evaluates it to a least fixpoint (semi-naive) over any set of `{:s :p :o}`
+triples -- `hierarchy-rules` / `triple-rules` are unchanged.
+
+```clojure
+(require '[owl.rl :as rl])
+
+(rl/entail triples {})            ;; keyword vocabulary (:rdf/type ...)
+(rl/entail triples {:vocabulary owl.rules/rl-iri-vocabulary})   ;; imported RDF
+;; => {:graph #{...} :inferred #{...} :consistent? true
+;;     :inconsistencies [{:rule :cax-dw :table 7 :triples [...]}] ...}
+```
+
+- **Schema entailments are emitted** (`:schema? true`, the default): the
+  transitive `rdfs:subClassOf` / `rdfs:subPropertyOf` closures (scm-sco,
+  scm-spo), equivalences (scm-eqc*, scm-eqp*), domain/range propagation
+  (scm-dom*, scm-rng*) and the restriction subsumptions (scm-hv, scm-svf*,
+  scm-avf*, scm-int, scm-uni) are triples in `:graph`, so a superclass is read
+  off the graph rather than probed with an individual. `:schema? false` skips
+  Table 9.
+- **RDF lists** (`intersectionOf`, `unionOf`, `oneOf`, `propertyChainAxiom`,
+  `hasKey`, `members`, `distinctMembers`) are read from `rdf:first` /
+  `rdf:rest`; a malformed list is listed under `:diagnostics`, not skipped
+  silently.
+- **Inconsistencies are results.** Every rule that concludes `false` is
+  evaluated over the closed graph and each match is returned with its rule id
+  and premise triples; nothing is thrown by `entail`. `owl.rl/materialize`
+  (closure only) throws `ex-info` carrying the same structured list instead.
+- **Capability lists** a consumer can refuse against: `supported-rules`,
+  `rule-status` (id -> `:implemented` / `:partial` / `:omitted` + reason),
+  `supported-vocabulary` (IRIs), `vocabulary-status` (IRI -> `:supported`,
+  `:inert`, `{:partial r}`, `{:unsupported r}`), `inconsistency-rules`,
+  and `triple-rules-coverage` for the legacy Datalog rulesets.
+
+Rule status (the reasons are in `rule-status`):
+
+| | |
+|---|---|
+| implemented | all of Tables 4, 5, 6, 7, 9 except eq-ref |
+| omitted | **eq-ref** -- reflexive `owl:sameAs` is never materialized (nor derived by any other rule); its only observable consequence, `x differentFrom x` or a member repeated in `AllDifferent`, is reported as eq-diff1/2 |
+| partial | **dt-type1, dt-type2, dt-eq, dt-not-type** -- decided for `rdfs:Literal`, `xsd:string`, `boolean`, `decimal`, `integer` and its 12 derived types, `dateTime`, `dateTimeStamp`; the rest of the RL datatype map (double, float, owl:real, rdf:PlainLiteral, binary, anyURI, ...) is undecided. **dt-diff** -- not materialized (one triple per literal pair); an `owl:sameAs` between literals of different value is reported as `:dt-diff` instead |
+| RL-admitted form only | `owl:maxCardinality` / `owl:maxQualifiedCardinality` with 0 or 1 (the only values RL has rules for) |
+
+Literals are `{:literal lexical :datatype DT}` maps (DT a keyword like
+`:xsd/integer` or its IRI; `:language` for tagged strings) or native
+integers / decimals / booleans. A bare string is a term, never a literal.
+
+Conformance: the W3C OWL 2 test cases for profile RL (vendored, see
+`test-resources/w3c-owl2/`) -- 91 cases: 67 pass, 18 fail, 6 cannot run
+(functional-syntax-only or imports). All 11 runnable inconsistency tests and
+all 56 runnable consistency tests pass; 10 of 28 positive-entailment tests
+pass, and each of the 18 failures is a conclusion outside what the RL/RDF
+rules derive (owl:differentFrom, complement/union class assertions,
+property characteristics, datatype subsumption, DIRECT-only annotation
+entailment) -- pinned with its reason in `test/owl/w3c_rl_test.cljk`.
 
 ## Maturity
 
@@ -72,9 +130,9 @@ which name it came back under.
 | Structural coverage | ontology (3.1, 3.4), all 6 entity kinds (5.1-5.6.1), literals (5.7), object/data property expressions (6.1-6.2), all class expressions (8.1-8.5), all class/object-property/data-property axioms (9.1-9.3), all assertions (9.6), Declaration (5.8), a minimal AnnotationAssertion (10.2.1) |
 | Functional-syntax tree | 1:1 EDN mirror of the spec's operator names (`:SubClassOf`, `:ObjectSomeValuesFrom`, ...); round-trips every axiom kind and a full ontology -- does NOT parse the concrete `SubClassOf(:Cat :Animal)` text (v2, see Follow-ups) |
 | Validation | structural only: dangling references, n-ary arity minimums, self-disjoint axioms, negative cardinalities, and two reasoner-free contradictions (ClassAssertion vs DisjointClasses, SameIndividual vs DifferentIndividuals) |
-| Inference | SubClassOf transitive closure, TransitiveObjectProperty fact closure, SymmetricObjectProperty/InverseObjectProperties fact materialization -- graph reachability only, **not** a description-logic reasoner (see Follow-ups) |
-| Tests | round-trip/property coverage for every namespace |
-| Runtime deps | `kotoba-lang/dsl-core` (validation-problem convention) only |
+| Inference | `owl.reason`: SubClassOf / TransitiveObjectProperty / Symmetric / Inverse closures over a model. `owl.rules` Datalog: the RDFS core. `owl.rl`: the complete OWL 2 RL/RDF rule table (§4.3 Tables 4-9) with structured inconsistency reports -- **not** a description-logic reasoner (OWL 2 DL entailment outside RL is out) |
+| Tests | round-trip/property coverage for every namespace; every RL rule with a positive fixture, a premise-drop control and a rule-drop control; the W3C RL conformance cases pinned per case |
+| Runtime deps | `kotoba-lang/dsl-core` (validation-problem convention) and `kotoba-lang/coll` for `owl.validate`; `owl.rules` and `owl.rl` require nothing |
 
 ## Namespaces
 
